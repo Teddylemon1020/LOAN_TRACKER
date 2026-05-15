@@ -10,6 +10,8 @@ interface AuthContextType{
     setIsLoggedIn: (val: boolean) => void;
     login: Login; 
     setLogin: (val: Login) => void;
+    role: string;
+    setRole: (val: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -17,9 +19,10 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({children}: {children: React.ReactNode}){
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [login, setLogin] = useState<Login> ({email: "", password: ""});
+    const [role, setRole] = useState("")
 
     return(
-        <AuthContext.Provider value={{isLoggedIn, setIsLoggedIn, login, setLogin}}>
+        <AuthContext.Provider value={{isLoggedIn, setIsLoggedIn, login, setLogin, role, setRole}}>
         {children}
         </AuthContext.Provider>
     )
