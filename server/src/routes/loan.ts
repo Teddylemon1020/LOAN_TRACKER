@@ -2,6 +2,8 @@ import { Router, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { AuthRequest, requireAuth, requireRole } from "../middleware/authMiddleware";
 
+const router = Router();
+
 router.post("/loan", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const { amount, date, term, rate, monthly, repayment } = req.body;
