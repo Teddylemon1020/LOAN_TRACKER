@@ -6,6 +6,5 @@
 **/coverage
 **/__tests__
 **/*.test.ts
-**/tsconfig*.json
 server/dev.db
 .github
