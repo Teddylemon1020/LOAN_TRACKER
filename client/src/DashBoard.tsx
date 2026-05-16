@@ -89,7 +89,7 @@ function DashBoard() {
     const [users, setUsers] = useState<User[]>([]);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [selectedUserLoans, setSelectedUserLoans] = useState<Loan[]>([]);
-    const [rateInputs, setRateInputs] = useState<Record<string, string>>({});
+    const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
 
     const handleLogOut = () => {
         localStorage.removeItem("token");
@@ -226,26 +226,15 @@ function DashBoard() {
         }
     };
 
-    const handleAdjustRate = async (loanId: string) => {
-        const newRate = rateInputs[loanId];
-        if (!newRate) return;
-        try {
-            setLoading(true);
-            const res = await fetch(`/api/admin/loans/${loanId}`, {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${localStorage.getItem("token")}`,
-                },
-                body: JSON.stringify({ rate: newRate }),
-            });
-            if (!res.ok) throw new Error("Failed to adjust rate");
-            setRateInputs(prev => ({ ...prev, [loanId]: "" }));
-            if (selectedUser) await fetchUserLoans(selectedUser.id);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "An error occurred");
-        } finally {
-            setLoading(false);
+    const toggleUser = (user: User) => {
+        if (expandedUserId === user.id) {
+            setExpandedUserId(null);
+            setSelectedUser(null);
+            setSelectedUserLoans([]);
+        } else {
+            setExpandedUserId(user.id);
+            setSelectedUser(user);
+            void fetchUserLoans(user.id);
         }
     };
 
@@ -380,98 +369,93 @@ function DashBoard() {
                             <h1 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#111827" }}>Admin Dashboard</h1>
                         </div>
 
-                        {/* User selector */}
-                        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "1.25rem", marginBottom: "1.5rem" }}>
-                            <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.85rem", fontWeight: 500, color: "#374151" }}>Select User</label>
-                            <select
-                                style={{ ...inputStyle, cursor: "pointer" }}
-                                onChange={e => {
-                                    const user = users.find(u => u.id === e.target.value) || null;
-                                    setSelectedUser(user);
-                                    if (user) void fetchUserLoans(user.id);
-                                }}
-                            >
-                                <option value="">— choose a user —</option>
-                                {users.map(u => (
-                                    <option key={u.id} value={u.id}>{u.username} — {u.email}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Selected user loans */}
-                        {selectedUser && (
-                            <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
-                                <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid #e5e7eb" }}>
-                                    <h2 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 600, color: "#111827" }}>{selectedUser.username}'s Loans</h2>
-                                </div>
-                                {selectedUserLoans.length === 0 ? (
-                                    <p style={{ padding: "1.5rem", color: "#6b7280", fontSize: "0.9rem" }}>No loans found.</p>
-                                ) : (
-                                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                        <thead>
-                                            <tr style={{ background: "#f9fafb" }}>
-                                                <th style={th}>ID</th>
-                                                <th style={th}>Date</th>
-                                                <th style={th}>Amount</th>
-                                                <th style={th}>Term</th>
-                                                <th style={th}>Rate</th>
-                                                <th style={th}>Monthly</th>
-                                                <th style={th}>Repayment</th>
-                                                <th style={th}>Status</th>
-                                                <th style={th}>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {selectedUserLoans.map((l, i) => (
-                                                <tr key={l.id}>
-                                                    <td style={td}>{i + 1}</td>
-                                                    <td style={td}>{formatDate(l.date)}</td>
-                                                    <td style={td}>{l.amount.toLocaleString()}</td>
-                                                    <td style={td}>{l.term} Months</td>
-                                                    <td style={td}>{l.rate}%</td>
-                                                    <td style={td}>{l.monthly.toFixed(2)}</td>
-                                                    <td style={td}>{l.repayment.toFixed(2)}</td>
-                                                    <td style={td}><span style={statusBadge(l.status)}>{capitalize(l.status)}</span></td>
-                                                    <td style={td}>
-                                                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
-                                                            {l.status === "PENDING" && (
-                                                                <>
-                                                                    <button
-                                                                        onClick={() => void handleApproveLoan(l.id)}
-                                                                        style={{ padding: "4px 10px", borderRadius: "5px", border: "none", background: "#d1fae5", color: "#065f46", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer" }}
-                                                                    >
-                                                                        Approve
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => void handleRejectLoan(l.id)}
-                                                                        style={{ padding: "4px 10px", borderRadius: "5px", border: "none", background: "#fee2e2", color: "#991b1b", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer" }}
-                                                                    >
-                                                                        Reject
-                                                                    </button>
-                                                                </>
-                                                            )}
-                                                            <input
-                                                                type="number"
-                                                                placeholder="Rate %"
-                                                                value={rateInputs[l.id] ?? ""}
-                                                                onChange={e => setRateInputs(prev => ({ ...prev, [l.id]: e.target.value }))}
-                                                                style={{ width: "70px", padding: "4px 6px", borderRadius: "5px", border: "1px solid #d1d5db", fontSize: "0.78rem" }}
-                                                            />
-                                                            <button
-                                                                onClick={() => void handleAdjustRate(l.id)}
-                                                                style={{ padding: "4px 10px", borderRadius: "5px", border: "none", background: "#eff6ff", color: "#1d4ed8", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer" }}
-                                                            >
-                                                                Set Rate
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                )}
+                        {/* Accordion user list */}
+                        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
+                            <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid #e5e7eb" }}>
+                                <h2 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 600, color: "#111827" }}>Employees</h2>
                             </div>
-                        )}
+                            {users.length === 0 ? (
+                                <p style={{ padding: "1.5rem", color: "#6b7280", fontSize: "0.9rem" }}>No users found.</p>
+                            ) : (
+                                users.map(u => {
+                                    const isOpen = expandedUserId === u.id;
+                                    return (
+                                        <div key={u.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                                            {/* Row header — click to expand */}
+                                            <button
+                                                onClick={() => toggleUser(u)}
+                                                style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.25rem", background: isOpen ? "#f9fafb" : "#fff", border: "none", cursor: "pointer", textAlign: "left" }}
+                                            >
+                                                <div>
+                                                    <span style={{ fontWeight: 600, fontSize: "0.9rem", color: "#111827" }}>{u.username}</span>
+                                                    <span style={{ marginLeft: "0.75rem", fontSize: "0.82rem", color: "#6b7280" }}>{u.email}</span>
+                                                </div>
+                                                <span style={{ fontSize: "0.75rem", color: "#6b7280", transform: isOpen ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▼</span>
+                                            </button>
+
+                                            {/* Expanded loans table */}
+                                            {isOpen && (
+                                                <div style={{ borderTop: "1px solid #e5e7eb", background: "#fafafa" }}>
+                                                    {loading ? (
+                                                        <p style={{ padding: "1rem 1.25rem", color: "#6b7280", fontSize: "0.875rem" }}>Loading…</p>
+                                                    ) : selectedUserLoans.length === 0 ? (
+                                                        <p style={{ padding: "1rem 1.25rem", color: "#6b7280", fontSize: "0.875rem" }}>No loans found.</p>
+                                                    ) : (
+                                                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                                            <thead>
+                                                                <tr style={{ background: "#f3f4f6" }}>
+                                                                    <th style={th}>ID</th>
+                                                                    <th style={th}>Date</th>
+                                                                    <th style={th}>Amount</th>
+                                                                    <th style={th}>Term</th>
+                                                                    <th style={th}>Rate</th>
+                                                                    <th style={th}>Monthly</th>
+                                                                    <th style={th}>Repayment</th>
+                                                                    <th style={th}>Status</th>
+                                                                    <th style={th}>Actions</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {selectedUserLoans.map((l, i) => (
+                                                                    <tr key={l.id} style={{ background: "#fff" }}>
+                                                                        <td style={td}>{i + 1}</td>
+                                                                        <td style={td}>{formatDate(l.date)}</td>
+                                                                        <td style={td}>{l.amount.toLocaleString()}</td>
+                                                                        <td style={td}>{l.term} Months</td>
+                                                                        <td style={td}>{l.rate}%</td>
+                                                                        <td style={td}>{l.monthly.toFixed(2)}</td>
+                                                                        <td style={td}>{l.repayment.toFixed(2)}</td>
+                                                                        <td style={td}><span style={statusBadge(l.status)}>{capitalize(l.status)}</span></td>
+                                                                        <td style={td}>
+                                                                            {l.status === "PENDING" && (
+                                                                                <div style={{ display: "flex", gap: "0.5rem" }}>
+                                                                                    <button
+                                                                                        onClick={() => void handleApproveLoan(l.id)}
+                                                                                        style={{ padding: "4px 12px", borderRadius: "5px", border: "none", background: "#d1fae5", color: "#065f46", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer" }}
+                                                                                    >
+                                                                                        Approve
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => void handleRejectLoan(l.id)}
+                                                                                        style={{ padding: "4px 12px", borderRadius: "5px", border: "none", background: "#fee2e2", color: "#991b1b", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer" }}
+                                                                                    >
+                                                                                        Reject
+                                                                                    </button>
+                                                                                </div>
+                                                                            )}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
                     </>
                 )}
             </div>
