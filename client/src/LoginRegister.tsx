@@ -78,30 +78,83 @@ function LoginRegister() {
 
   
 
-  return (
-    <div>
-      {loading && <p>Loading...</p>}
-      {error && <p>{error}</p>}
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "0.6rem 0.75rem",
+    borderRadius: "6px",
+    border: "1px solid #d1d5db",
+    fontSize: "0.95rem",
+    outline: "none",
+    boxSizing: "border-box",
+  };
 
-      {inSignup ? (
-        <>
-          <h2>Register</h2>
-          <input placeholder="Username" value={signup.username} onChange={e => setSignup({...signup, username: e.target.value})} />
-          <input placeholder="Email" value={signup.email} onChange={e => setSignup({...signup, email: e.target.value})} />
-          <input placeholder="Password" type="password" value={signup.password} onChange={e => setSignup({...signup, password: e.target.value})} />
-          <input placeholder="Confirm Password" type="password" value={signup.confirmpassword} onChange={e => setSignup({...signup, confirmpassword: e.target.value})} />
-          <button onClick={handSignup}>Register</button>
-          <button onClick={() => { setInSignup(false); setInLogIn(true); }}>Go to Login</button>
-        </>
-      ) : (
-        <>
-          <h2>Login</h2>
-          <input placeholder="Username" value={login.username} onChange={e => setLogin({...login, username: e.target.value})} />
-          <input placeholder="Password" type="password" value={login.password} onChange={e => setLogin({...login, password: e.target.value})} />
-          <button onClick={handleLogin}>Login</button>
-          <button onClick={() => { setInLogIn(false); setInSignup(true); }}>Go to Register</button>
-        </>
-      )}
+  const primaryBtn: React.CSSProperties = {
+    width: "100%",
+    padding: "0.65rem",
+    borderRadius: "6px",
+    border: "none",
+    background: "#2563eb",
+    color: "#fff",
+    fontSize: "0.95rem",
+    cursor: "pointer",
+    fontWeight: 600,
+  };
+
+  const linkBtn: React.CSSProperties = {
+    background: "none",
+    border: "none",
+    color: "#2563eb",
+    cursor: "pointer",
+    fontSize: "0.875rem",
+    padding: 0,
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f3f4f6" }}>
+      <div style={{ background: "#fff", borderRadius: "12px", padding: "2rem", width: "100%", maxWidth: "380px", boxShadow: "0 4px 24px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column", gap: "1rem" }}>
+
+        {inSignup ? (
+          <>
+            <div>
+              <h2 style={{ margin: 0, fontSize: "1.4rem" }}>Create account</h2>
+              <p style={{ margin: "0.25rem 0 0", color: "#6b7280", fontSize: "0.875rem" }}>Fill in the details below to register</p>
+            </div>
+
+            {error && <p style={{ margin: 0, color: "#dc2626", fontSize: "0.875rem" }}>{error}</p>}
+
+            <input style={inputStyle} placeholder="Username" value={signup.username} onChange={e => setSignup({...signup, username: e.target.value})} />
+            <input style={inputStyle} placeholder="Email" value={signup.email} onChange={e => setSignup({...signup, email: e.target.value})} />
+            <input style={inputStyle} placeholder="Password" type="password" value={signup.password} onChange={e => setSignup({...signup, password: e.target.value})} />
+            <input style={inputStyle} placeholder="Confirm Password" type="password" value={signup.confirmpassword} onChange={e => setSignup({...signup, confirmpassword: e.target.value})} />
+
+            <button style={primaryBtn} onClick={handSignup} disabled={loading}>{loading ? "Registering..." : "Register"}</button>
+
+            <p style={{ margin: 0, textAlign: "center", fontSize: "0.875rem", color: "#6b7280" }}>
+              Already have an account?{" "}
+              <button style={linkBtn} onClick={() => { setInSignup(false); setInLogIn(true); }}>Login</button>
+            </p>
+          </>
+        ) : (
+          <>
+            <div>
+              <h2 style={{ margin: 0, fontSize: "1.4rem" }}>Welcome back</h2>
+              <p style={{ margin: "0.25rem 0 0", color: "#6b7280", fontSize: "0.875rem" }}>Sign in to your account</p>
+            </div>
+
+            {error && <p style={{ margin: 0, color: "#dc2626", fontSize: "0.875rem" }}>{error}</p>}
+
+            <input style={inputStyle} placeholder="Username" value={login.username} onChange={e => setLogin({...login, username: e.target.value})} />
+            <input style={inputStyle} placeholder="Password" type="password" value={login.password} onChange={e => setLogin({...login, password: e.target.value})} />
+
+            <button style={primaryBtn} onClick={handleLogin} disabled={loading}>{loading ? "Signing in..." : "Login"}</button>
+
+            <p style={{ margin: 0, textAlign: "center", fontSize: "0.875rem", color: "#6b7280" }}>
+              Don't have an account?{" "}
+              <button style={linkBtn} onClick={() => { setInLogIn(false); setInSignup(true); }}>Register</button>
+            </p>
+          </>
+        )}
+      </div>
     </div>
   )
   
