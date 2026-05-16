@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./ProtectedRoute";
-import DashBoard from "./Dashboard";
+import DashBoard from "./DashBoard";
 import LoginRegister from "./LoginRegister";
 import Unauthorized from "./Unauthorized";
 
