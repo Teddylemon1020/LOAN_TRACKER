@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  PROJECT_ID: loan-tracker-tyronhakkiroan
   REGION: asia-southeast1
   SERVICE: loan-tracker
   REGISTRY: asia-southeast1-docker.pkg.dev
