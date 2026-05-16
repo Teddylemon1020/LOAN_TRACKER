@@ -3,6 +3,7 @@ FROM node:22-alpine AS client-build
 WORKDIR /app/client
 
 COPY client/package*.json ./
+COPY client/tsconfig*.json ./
 RUN npm ci --ignore-scripts
 
 COPY client/ ./
