@@ -143,13 +143,12 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGISTRY }}
 
-      - name: Build Docker image
-        run: docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/loan-tracker/${{ env.SERVICE }}:${{ github.sha }} -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/loan-tracker/${{ env.SERVICE }}:latest .
-
-      - name: Push Docker image
+      - name: Build and push Docker image
         run: |
-          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/loan-tracker/${{ env.SERVICE }}:${{ github.sha }}
-          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/loan-tracker/${{ env.SERVICE }}:latest
+          IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/loan-tracker/${{ env.SERVICE }}"
+          docker build -t "${IMAGE}:${{ github.sha }}" -t "${IMAGE}:latest" .
+          docker push "${IMAGE}:${{ github.sha }}"
+          docker push "${IMAGE}:latest"
 
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
