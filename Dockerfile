@@ -57,5 +57,5 @@ ENV PORT=8080
 EXPOSE 8080
 
 ENTRYPOINT ["dumb-init", "--"]
-# Run migrations then start the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+# Run migrations (best-effort) then start the server
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy; node dist/index.js"]
