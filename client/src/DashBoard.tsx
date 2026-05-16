@@ -1,15 +1,11 @@
 import {useState} from "react";
+import { useAuth } from "./AuthContext";
 
-interface Board{
+function DashBoard(){
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+    const { setIsLoggedIn, setLogin } = useAuth();
 
-}
-
-const [error, setError] = useState("");
-const [loading, setLoading] = useState(false);
-
-
-
-export default function DashBoard(){
     const handleLogOut = async() => {
         localStorage.removeItem("token");
         setIsLoggedIn(false);
@@ -23,3 +19,5 @@ export default function DashBoard(){
         <p></p>
     )
 }
+
+export default DashBoard;
