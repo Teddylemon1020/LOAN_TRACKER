@@ -235,6 +235,17 @@ function DashBoard(){
                 </div>
             ) : (
                 <div>
+                    <div style={{ display: "flex", gap: "1rem" }}>
+                        <div style={{ flex: 1 }}>
+                            <p>Approved Loans</p>
+                            <p>{loans.filter(l => l.status === "APPROVED").length}</p>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <p>Total Borrowed</p>
+                            <p>{loans.filter(l => l.status === "APPROVED").reduce((sum, l) => sum + parseFloat(l.amount || "0"), 0).toFixed(2)}</p>
+                        </div>
+                    </div>
+
                     {showLoanForm && (
                         <div>
                             <input placeholder="Amount" value={loanForm.amount} onChange={e => setLoanForm({...loanForm, amount: e.target.value})} />
