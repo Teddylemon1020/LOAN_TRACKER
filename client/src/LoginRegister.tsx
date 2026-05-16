@@ -22,7 +22,6 @@ function LoginRegister() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState (false);
   const [inSignup, setInSignup] = useState (false);
-  const [inLogIn, setInLogIn] = useState (false);
 
   const { setIsLoggedIn, setRole } = useAuth();
   const navigate = useNavigate();
@@ -60,8 +59,8 @@ function LoginRegister() {
       setRole(data.role);
       navigate("/dashboard");
 
-    } catch (err: any){
-      setError (err.message)
+    } catch (err){
+      setError(err instanceof Error ? err.message : "An error occurred")
     } finally{
       setLoading(false);
     }
@@ -157,7 +156,7 @@ function LoginRegister() {
 
             <p style={{ margin: 0, textAlign: "center", fontSize: "0.875rem", color: "#6b7280" }}>
               Already have an account?{" "}
-              <button style={linkBtn} onClick={() => { setInSignup(false); setInLogIn(true); }}>Login</button>
+              <button style={linkBtn} onClick={() => { setInSignup(false); }}>Login</button>
             </p>
           </>
         ) : (
@@ -176,7 +175,7 @@ function LoginRegister() {
 
             <p style={{ margin: 0, textAlign: "center", fontSize: "0.875rem", color: "#6b7280" }}>
               Don't have an account?{" "}
-              <button style={linkBtn} onClick={() => { setInLogIn(false); setInSignup(true); }}>Register</button>
+              <button style={linkBtn} onClick={() => { setInSignup(true); }}>Register</button>
             </p>
           </>
         )}

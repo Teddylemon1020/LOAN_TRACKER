@@ -174,8 +174,8 @@ function DashBoard() {
     };
 
     useEffect(() => {
-        if (role === "ADMIN") fetchUsers();
-        else fetchLoans();
+        if (role === "ADMIN") void fetchUsers();
+        else void fetchLoans();
     }, [role]);
 
     const approvedLoans = loans.filter(l => l.status === "APPROVED");
