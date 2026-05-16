@@ -29,7 +29,7 @@ function LoginRegister() {
   const handSignup = async () =>{
     setError("");
 
-    if (!signup.username || !signup.password || !signup.confirmpassword || signup.email){
+    if (!signup.username || !signup.password || !signup.confirmpassword || !signup.email){
       setError("Please fill all the fields");
       return;
     }
