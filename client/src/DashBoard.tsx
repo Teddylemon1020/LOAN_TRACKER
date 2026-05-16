@@ -247,12 +247,17 @@ function DashBoard(){
                     </div>
 
                     {showLoanForm && (
-                        <div>
-                            <input placeholder="Amount" value={loanForm.amount} onChange={e => setLoanForm({...loanForm, amount: e.target.value})} />
-                            <input placeholder="Term (months)" value={loanForm.term} onChange={e => setLoanForm({...loanForm, term: e.target.value})} />
-                            <input placeholder="Rate (%)" value={loanForm.rate} onChange={e => setLoanForm({...loanForm, rate: e.target.value})} />
-                            <button onClick={handleLoan}>Submit</button>
-                            <button onClick={() => setShowLoanForm(false)}>Cancel</button>
+                        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setShowLoanForm(false)}>
+                            <div style={{ background: "#fff", padding: "2rem", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "0.75rem", minWidth: "300px" }} onClick={e => e.stopPropagation()}>
+                                <h2>Apply for Loan</h2>
+                                <input placeholder="Amount" value={loanForm.amount} onChange={e => setLoanForm({...loanForm, amount: e.target.value})} />
+                                <input placeholder="Term (months)" value={loanForm.term} onChange={e => setLoanForm({...loanForm, term: e.target.value})} />
+                                <input placeholder="Rate (%)" value={loanForm.rate} onChange={e => setLoanForm({...loanForm, rate: e.target.value})} />
+                                <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+                                    <button onClick={() => setShowLoanForm(false)}>Cancel</button>
+                                    <button onClick={handleLoan}>Submit</button>
+                                </div>
+                            </div>
                         </div>
                     )}
 
