@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
+import { TERM_RATES } from "./constants/loanConstants";
 
 interface Loan {
     id: string;
@@ -18,8 +19,6 @@ interface User {
     username: string;
     email: string;
 }
-
-const TERM_RATES: Record<string, number> = { "3": 3, "6": 6, "12": 12 };
 
 function DashBoard() {
     const [error, setError] = useState("");
@@ -79,8 +78,8 @@ function DashBoard() {
             await fetchLoans();
             setShowLoanForm(false);
             setLoanForm({ amount: "", term: "3" });
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "An error occurred");
         } finally {
             setLoading(false);
         }
@@ -94,8 +93,8 @@ function DashBoard() {
             });
             if (!res.ok) throw new Error("Failed to fetch loans");
             setLoans(await res.json());
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "An error occurred");
         } finally {
             setLoading(false);
         }
@@ -109,8 +108,8 @@ function DashBoard() {
             });
             if (!res.ok) throw new Error("Failed to fetch users");
             setUsers(await res.json());
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "An error occurred");
         } finally {
             setLoading(false);
         }
@@ -124,8 +123,8 @@ function DashBoard() {
             });
             if (!res.ok) throw new Error("Failed to fetch user loans");
             setSelectedUserLoans(await res.json());
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "An error occurred");
         } finally {
             setLoading(false);
         }
@@ -144,8 +143,8 @@ function DashBoard() {
             });
             if (!res.ok) throw new Error("Failed to approve loan");
             if (selectedUser) await fetchUserLoans(selectedUser.id);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "An error occurred");
         } finally {
             setLoading(false);
         }
@@ -167,8 +166,8 @@ function DashBoard() {
             if (!res.ok) throw new Error("Failed to adjust rate");
             setRateInputs(prev => ({ ...prev, [loanId]: "" }));
             if (selectedUser) await fetchUserLoans(selectedUser.id);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "An error occurred");
         } finally {
             setLoading(false);
         }
@@ -179,12 +178,10 @@ function DashBoard() {
         else fetchLoans();
     }, [role]);
 
-    // Derived stats for user panels
     const approvedLoans = loans.filter(l => l.status === "APPROVED");
     const approvedCount = approvedLoans.length;
     const totalBorrowed = approvedLoans.reduce((sum, l) => sum + l.amount, 0);
 
-    // Live preview for the loan form
     const previewAmount = parseFloat(loanForm.amount) || 0;
     const previewTerm = parseInt(loanForm.term);
     const previewRate = TERM_RATES[loanForm.term] ?? 6;
@@ -204,7 +201,6 @@ function DashBoard() {
                 <div>
                     <h1>Dashboard</h1>
 
-                    {/* Summary panels */}
                     <div>
                         <div>
                             <h3>Approved Loans</h3>
@@ -216,7 +212,6 @@ function DashBoard() {
                         </div>
                     </div>
 
-                    {/* Apply for loan toggle */}
                     <button onClick={() => setShowLoanForm(!showLoanForm)}>
                         {showLoanForm ? "Cancel" : "Apply for Loan"}
                     </button>
@@ -255,7 +250,6 @@ function DashBoard() {
                         </div>
                     )}
 
-                    {/* Loans table */}
                     <h2>My Loans</h2>
                     {loans.length === 0 ? (
                         <p>No loans yet.</p>
@@ -289,7 +283,6 @@ function DashBoard() {
                     )}
                 </div>
             ) : (
-                /* Admin view */
                 <div>
                     <h1>Admin Dashboard</h1>
                     <select
