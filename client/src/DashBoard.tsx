@@ -4,12 +4,12 @@ import { useAuth } from "./AuthContext";
 
 interface Loan {
     id: string;
-    amount: string;
+    amount: number;
     date: string;
-    term: string;
-    rate: string;
-    monthly: string;
-    repayment: string;
+    term: number;
+    rate: number;
+    monthly: number;
+    repayment: number;
     status: string;
 }
 
@@ -19,7 +19,9 @@ interface User {
     email: string;
 }
 
-function DashBoard(){
+const TERM_RATES: Record<string, number> = { "3": 3, "6": 6, "12": 12 };
+
+function DashBoard() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const { setIsLoggedIn, setLogin, role } = useAuth();
@@ -27,16 +29,17 @@ function DashBoard(){
 
     const [loans, setLoans] = useState<Loan[]>([]);
     const [showLoanForm, setShowLoanForm] = useState(false);
-    const [loanForm, setLoanForm] = useState({ amount: "", term: "", rate: "" });
+    const [loanForm, setLoanForm] = useState({ amount: "", term: "3" });
 
     const [users, setUsers] = useState<User[]>([]);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [selectedUserLoans, setSelectedUserLoans] = useState<Loan[]>([]);
+    const [rateInputs, setRateInputs] = useState<Record<string, string>>({});
 
     const handleLogOut = () => {
         localStorage.removeItem("token");
         setIsLoggedIn(false);
-        setLogin({email: "", password: ""});
+        setLogin({ email: "", password: "" });
         navigate("/login");
     };
 
@@ -51,19 +54,21 @@ function DashBoard(){
             setLoading(true);
             const amount = parseFloat(loanForm.amount);
             const term = parseInt(loanForm.term);
-            const rate = parseFloat(loanForm.rate);
+            const rate = TERM_RATES[loanForm.term] ?? 6;
             const monthly = computeMonthly(amount, rate, term);
             const repayment = (parseFloat(monthly) * term).toFixed(2);
 
             const res = await fetch("/api/loan", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
                 body: JSON.stringify({
-                    id: "",
                     amount: loanForm.amount,
-                    date: new Date().toISOString().split("T")[0], //use the one from present date
+                    date: new Date().toISOString().split("T")[0],
                     term: loanForm.term,
-                    rate: loanForm.rate,
+                    rate,
                     monthly,
                     repayment,
                     status: "PENDING",
@@ -73,13 +78,13 @@ function DashBoard(){
             if (!res.ok) throw new Error("Failed to apply for loan");
             await fetchLoans();
             setShowLoanForm(false);
-            setLoanForm({ amount: "", term: "", rate: "" });
+            setLoanForm({ amount: "", term: "3" });
         } catch (err: any) {
             setError(err.message);
         } finally {
             setLoading(false);
         }
-    }
+    };
 
     const fetchLoans = async () => {
         try {
@@ -131,7 +136,10 @@ function DashBoard(){
             setLoading(true);
             const res = await fetch(`/api/admin/loans/${loanId}`, {
                 method: "PATCH",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
                 body: JSON.stringify({ status: "APPROVED" }),
             });
             if (!res.ok) throw new Error("Failed to approve loan");
@@ -143,15 +151,21 @@ function DashBoard(){
         }
     };
 
-    const handleAdjustRate = async (loanId: string, newRate: string) => {
+    const handleAdjustRate = async (loanId: string) => {
+        const newRate = rateInputs[loanId];
+        if (!newRate) return;
         try {
             setLoading(true);
             const res = await fetch(`/api/admin/loans/${loanId}`, {
                 method: "PATCH",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
                 body: JSON.stringify({ rate: newRate }),
             });
             if (!res.ok) throw new Error("Failed to adjust rate");
+            setRateInputs(prev => ({ ...prev, [loanId]: "" }));
             if (selectedUser) await fetchUserLoans(selectedUser.id);
         } catch (err: any) {
             setError(err.message);
@@ -165,24 +179,126 @@ function DashBoard(){
         else fetchLoans();
     }, [role]);
 
-    return(
+    // Derived stats for user panels
+    const approvedLoans = loans.filter(l => l.status === "APPROVED");
+    const approvedCount = approvedLoans.length;
+    const totalBorrowed = approvedLoans.reduce((sum, l) => sum + l.amount, 0);
+
+    // Live preview for the loan form
+    const previewAmount = parseFloat(loanForm.amount) || 0;
+    const previewTerm = parseInt(loanForm.term);
+    const previewRate = TERM_RATES[loanForm.term] ?? 6;
+    const previewMonthly = previewAmount > 0 ? computeMonthly(previewAmount, previewRate, previewTerm) : "0.00";
+    const previewRepayment = previewAmount > 0 ? (parseFloat(previewMonthly) * previewTerm).toFixed(2) : "0.00";
+
+    return (
         <div>
-            <div><button onClick={handleLogOut}>logout</button></div>
             <div>
-                <h1>Dashboard</h1>
-                {role !== "ADMIN" && <button onClick={() => setShowLoanForm(!showLoanForm)}>apply for loan</button>} {/*side by side with one starting from the other end of the container */}
+                <button onClick={handleLogOut}>Logout</button>
             </div>
 
             {loading && <p>Loading...</p>}
-            {error && <p>{error}</p>}
+            {error && <p style={{ color: "red" }}>{error}</p>}
 
-            {role === "ADMIN" ? (
+            {role !== "ADMIN" ? (
                 <div>
-                    <select onChange={e => {
-                        const user = users.find(u => u.id === e.target.value) || null;
-                        setSelectedUser(user);
-                        if (user) fetchUserLoans(user.id);
-                    }}>
+                    <h1>Dashboard</h1>
+
+                    {/* Summary panels */}
+                    <div>
+                        <div>
+                            <h3>Approved Loans</h3>
+                            <p>{approvedCount}</p>
+                        </div>
+                        <div>
+                            <h3>Total Borrowed</h3>
+                            <p>${totalBorrowed.toFixed(2)}</p>
+                        </div>
+                    </div>
+
+                    {/* Apply for loan toggle */}
+                    <button onClick={() => setShowLoanForm(!showLoanForm)}>
+                        {showLoanForm ? "Cancel" : "Apply for Loan"}
+                    </button>
+
+                    {showLoanForm && (
+                        <div>
+                            <h3>Loan Application</h3>
+                            <div>
+                                <label>Amount</label>
+                                <input
+                                    type="number"
+                                    placeholder="Enter amount"
+                                    value={loanForm.amount}
+                                    onChange={e => setLoanForm({ ...loanForm, amount: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label>Term</label>
+                                <select
+                                    value={loanForm.term}
+                                    onChange={e => setLoanForm({ ...loanForm, term: e.target.value })}
+                                >
+                                    <option value="3">3 months</option>
+                                    <option value="6">6 months</option>
+                                    <option value="12">12 months</option>
+                                </select>
+                            </div>
+                            <div>
+                                <p>Interest Rate: {previewRate}%</p>
+                                <p>Monthly Payment: ${previewMonthly}</p>
+                                <p>Total Repayment: ${previewRepayment}</p>
+                            </div>
+                            <button onClick={handleLoan} disabled={loading || !loanForm.amount}>
+                                Apply
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Loans table */}
+                    <h2>My Loans</h2>
+                    {loans.length === 0 ? (
+                        <p>No loans yet.</p>
+                    ) : (
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Amount</th>
+                                    <th>Date</th>
+                                    <th>Term</th>
+                                    <th>Rate (%)</th>
+                                    <th>Monthly</th>
+                                    <th>Repayment</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loans.map(l => (
+                                    <tr key={l.id}>
+                                        <td>${l.amount.toFixed(2)}</td>
+                                        <td>{l.date}</td>
+                                        <td>{l.term} months</td>
+                                        <td>{l.rate}%</td>
+                                        <td>${l.monthly.toFixed(2)}</td>
+                                        <td>${l.repayment.toFixed(2)}</td>
+                                        <td>{l.status}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            ) : (
+                /* Admin view */
+                <div>
+                    <h1>Admin Dashboard</h1>
+                    <select
+                        onChange={e => {
+                            const user = users.find(u => u.id === e.target.value) || null;
+                            setSelectedUser(user);
+                            if (user) fetchUserLoans(user.id);
+                        }}
+                    >
                         <option value="">Select a user</option>
                         {users.map(u => (
                             <option key={u.id} value={u.id}>{u.username} — {u.email}</option>
@@ -192,106 +308,62 @@ function DashBoard(){
                     {selectedUser && (
                         <div>
                             <h3>{selectedUser.username}'s Loans</h3>
-                            {/*table */}
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Amount</th>
-                                        <th>Date</th>
-                                        <th>Term</th>
-                                        <th>Rate (%)</th>
-                                        <th>Monthly</th>
-                                        <th>Repayment</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {selectedUserLoans.map(loan => (
-                                        <tr key={loan.id}>
-                                            <td>{loan.amount}</td>
-                                            <td>{loan.date}</td>
-                                            <td>{loan.term}</td>
-                                            <td>
-                                                <input
-                                                    defaultValue={loan.rate}
-                                                    onBlur={e => handleAdjustRate(loan.id, e.target.value)}
-                                                />
-                                            </td>
-                                            <td>{loan.monthly}</td>
-                                            <td>{loan.repayment}</td>
-                                            <td>{loan.status}</td>
-                                            <td>
-                                                {loan.status !== "APPROVED" && (
-                                                    <button onClick={() => handleApproveLoan(loan.id)}>Approve</button>
-                                                )}
-                                            </td>
+                            {selectedUserLoans.length === 0 ? (
+                                <p>No loans found.</p>
+                            ) : (
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Amount</th>
+                                            <th>Date</th>
+                                            <th>Term</th>
+                                            <th>Rate (%)</th>
+                                            <th>Monthly</th>
+                                            <th>Repayment</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {selectedUserLoans.map(l => (
+                                            <tr key={l.id}>
+                                                <td>${l.amount.toFixed(2)}</td>
+                                                <td>{l.date}</td>
+                                                <td>{l.term} months</td>
+                                                <td>{l.rate}%</td>
+                                                <td>${l.monthly.toFixed(2)}</td>
+                                                <td>${l.repayment.toFixed(2)}</td>
+                                                <td>{l.status}</td>
+                                                <td>
+                                                    {l.status !== "APPROVED" && (
+                                                        <button onClick={() => handleApproveLoan(l.id)}>
+                                                            Approve
+                                                        </button>
+                                                    )}
+                                                    <input
+                                                        type="number"
+                                                        placeholder="New rate"
+                                                        value={rateInputs[l.id] ?? ""}
+                                                        onChange={e =>
+                                                            setRateInputs(prev => ({ ...prev, [l.id]: e.target.value }))
+                                                        }
+                                                        style={{ width: "80px" }}
+                                                    />
+                                                    <button onClick={() => handleAdjustRate(l.id)}>
+                                                        Set Rate
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
                     )}
-                </div>
-            ) : (
-                <div>
-                    <div style={{ display: "flex", gap: "1rem" }}>
-                        <div style={{ flex: 1 }}>
-                            <p>Approved Loans</p>
-                            <p>{loans.filter(l => l.status === "APPROVED").length}</p>
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <p>Total Borrowed</p>
-                            <p>{loans.filter(l => l.status === "APPROVED").reduce((sum, l) => sum + parseFloat(l.amount || "0"), 0).toFixed(2)}</p>
-                        </div>
-                    </div>
-
-                    {showLoanForm && (
-                        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setShowLoanForm(false)}>
-                            <div style={{ background: "#fff", padding: "2rem", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "0.75rem", minWidth: "300px" }} onClick={e => e.stopPropagation()}>
-                                <h2>Apply for Loan</h2>
-                                <input placeholder="Amount" value={loanForm.amount} onChange={e => setLoanForm({...loanForm, amount: e.target.value})} />
-                                <input placeholder="Term (months)" value={loanForm.term} onChange={e => setLoanForm({...loanForm, term: e.target.value})} />
-                                <input placeholder="Rate (%)" value={loanForm.rate} onChange={e => setLoanForm({...loanForm, rate: e.target.value})} />
-                                <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
-                                    <button onClick={() => setShowLoanForm(false)}>Cancel</button>
-                                    <button onClick={handleLoan}>Submit</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/*table */}
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Amount</th>
-                                <th>Date</th>
-                                <th>Term</th>
-                                <th>Rate (%)</th>
-                                <th>Monthly</th>
-                                <th>Repayment</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loans.map(loan => (
-                                <tr key={loan.id}>
-                                    <td>{loan.amount}</td>
-                                    <td>{loan.date}</td>
-                                    <td>{loan.term}</td>
-                                    <td>{loan.rate}</td>
-                                    <td>{loan.monthly}</td>
-                                    <td>{loan.repayment}</td>
-                                    <td>{loan.status}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
                 </div>
             )}
         </div>
-    )
+    );
 }
 
 export default DashBoard;

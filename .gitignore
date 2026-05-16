@@ -1,0 +1,14 @@
+# Environment variables — never commit these
+server/.env
+.env
+
+# Dependencies
+**/node_modules
+
+# Build outputs
+**/dist
+server/prisma/dev.db
+server/prisma/dev.db-journal
+
+# Misc
+**/.DS_Store

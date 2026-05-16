@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from './AuthContext'
 
 interface Signup {
   username: string;
@@ -19,10 +21,11 @@ function LoginRegister() {
   const [login, setLogin] = useState<Login>({username: "", password: ""});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState (false);
-  const [isLoggedIn, setIsLoggedIn] = useState (false);
   const [inSignup, setInSignup] = useState (false);
   const [inLogIn, setInLogIn] = useState (false);
 
+  const { setIsLoggedIn, setRole } = useAuth();
+  const navigate = useNavigate();
 
   const handSignup = async () =>{
     setError("");
@@ -37,15 +40,15 @@ function LoginRegister() {
 
       if (signup.password !== signup.confirmpassword) throw new Error("password and confirm password is not the same")
 
-      
+
       const res = await fetch("/api/signup", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify(signup),
       });
 
-      
-      //email error and occupancy check 
+
+      //email error and occupancy check
       if (!res.ok){
         const errorData = await res.json();
         throw new Error (errorData.email ?? errorData.message ?? "Email Taken or Error")
@@ -54,7 +57,9 @@ function LoginRegister() {
       const data = await res.json();
       localStorage.setItem("token", data.token);
       setIsLoggedIn(true);
-    
+      setRole(data.role);
+      navigate("/dashboard");
+
     } catch (err: any){
       setError (err.message)
     } finally{
@@ -63,16 +68,37 @@ function LoginRegister() {
   }
 
   const handleLogin = async() =>{
-    setError("")
+    setError("");
 
+    if (!login.username || !login.password) {
+      setError("Please fill all the fields");
+      return;
+    }
+
+    setLoading(true);
     try {
-      
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(login),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message ?? "Invalid credentials");
+      }
+
+      const data = await res.json();
+      localStorage.setItem("token", data.token);
+      setIsLoggedIn(true);
+      setRole(data.role);
+      navigate("/dashboard");
     } catch (err: any){
       setError(err.message);
-    }finally{
+    } finally{
       setLoading(false);
     }
-      
+
     }
   
 

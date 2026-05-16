@@ -1,0 +1,168 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: asia-southeast1
+  SERVICE: loan-tracker
+  REGISTRY: asia-southeast1-docker.pkg.dev
+
+# ─── Gate 1: Lint & Format ────────────────────────────────────────────────────
+jobs:
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+
+      - name: Install client dependencies
+        run: npm ci
+        working-directory: client
+
+      - name: Install server dependencies
+        run: npm ci
+        working-directory: server
+
+      - name: Lint client (ESLint)
+        run: npm run lint
+        working-directory: client
+
+      - name: Type-check server (tsc --noEmit)
+        run: npm run typecheck
+        working-directory: server
+
+# ─── Gate 2: Unit & Integration Tests ─────────────────────────────────────────
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        run: npm ci
+        working-directory: server
+
+      - name: Run tests with coverage
+        run: npm test -- --ci --coverage
+        working-directory: server
+        env:
+          JWT_SECRET: ci_test_secret_not_used_in_production
+
+# ─── Gate 3: Security Scan ────────────────────────────────────────────────────
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+
+      - name: Install client dependencies
+        run: npm ci
+        working-directory: client
+
+      - name: Install server dependencies
+        run: npm ci
+        working-directory: server
+
+      - name: Dependency audit — client
+        run: npm audit --audit-level=critical
+        working-directory: client
+        continue-on-error: true
+
+      - name: Dependency audit — server
+        run: npm audit --audit-level=critical
+        working-directory: server
+        continue-on-error: true
+
+      - name: "[MOCK] SAST — scan for hardcoded secrets"
+        run: |
+          echo "=== [MOCK SAST] Scanning source for hardcoded credentials ==="
+          if grep -rn --include="*.ts" "password\s*=\s*['\"][^'\"]\+['\"]" server/src/ client/src/; then
+            echo "WARNING: Possible hardcoded credentials found — review required"
+          else
+            echo "PASSED: No hardcoded credentials detected"
+          fi
+
+      - name: "[MOCK] SAST — scan for SQL injection patterns"
+        run: |
+          echo "=== [MOCK SAST] Scanning for raw SQL usage ==="
+          if grep -rn --include="*.ts" "\$queryRaw\|\$executeRaw" server/src/; then
+            echo "WARNING: Raw SQL detected — verify inputs are parameterized"
+          else
+            echo "PASSED: No raw SQL usage detected"
+          fi
+          echo "=== [MOCK SAST] Security scan complete ==="
+
+# ─── Deploy (main branch only, all gates must pass) ───────────────────────────
+  deploy:
+    name: Build & Deploy to Cloud Run
+    runs-on: ubuntu-latest
+    needs: [test, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGISTRY }}
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/loan-tracker/${{ env.SERVICE }}:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/loan-tracker/${{ env.SERVICE }}:latest \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/loan-tracker/${{ env.SERVICE }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/loan-tracker/${{ env.SERVICE }}:latest
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE }}
+          region: ${{ env.REGION }}
+          image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/loan-tracker/${{ env.SERVICE }}:${{ github.sha }}
+          env_vars: NODE_ENV=production
+          # Secrets pulled from Google Secret Manager at runtime
+          secrets: |
+            DATABASE_URL=DATABASE_URL:latest
+            JWT_SECRET=JWT_SECRET:latest

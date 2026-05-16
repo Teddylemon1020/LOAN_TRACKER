@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -18,13 +19,15 @@ model User {
 }
 
 model Loan {
-  id          String   @id @default(cuid())
-  title       String
-  amount      Float
-  interest    Float
-  dueDate     DateTime
-  paid        Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  id        String   @id @default(cuid())
+  amount    Float
+  date      String
+  term      Int
+  rate      Float
+  monthly   Float
+  repayment Float
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
 }
