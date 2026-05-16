@@ -51,7 +51,7 @@ router.get("/admin/users", requireAuth, requireRole("ADMIN"), async (_req: AuthR
 router.get("/admin/users/:id/loans", requireAuth, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
     const loans = await prisma.loan.findMany({
-      where: { userId: req.params.id },
+      where: { userId: String(req.params.id) },
       orderBy: { createdAt: "desc" },
     });
     res.json(loans);
@@ -64,7 +64,7 @@ router.patch("/admin/loans/:id", requireAuth, requireRole("ADMIN"), async (req: 
   try {
     const { status, rate } = req.body;
     const updated = await prisma.loan.update({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       data: {
         ...(status !== undefined && { status }),
         ...(rate !== undefined && { rate: parseFloat(rate) }),
